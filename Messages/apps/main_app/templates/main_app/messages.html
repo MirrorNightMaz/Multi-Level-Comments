@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+
+<head>
+    <!--meta信息-->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+
+    <!--css文件-->
+    <link rel="stylesheet" href="{% static 'main_app/css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'main_app/fonts/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'main_app/css/comments-area.css' %}">
+    <link rel="stylesheet" href="{% static 'main_app/css/background-translucent.css' %}">
+    <link rel="stylesheet" href="{% static 'main_app/css/prism.css' %}">
+
+    <!--js文件-->
+    <script src="{% static 'main_app/js/hexo-configurations.js' %}"></script>
+    <script src="{% static 'main_app/js/jquery-3.5.0.min.js' %}"></script>
+    <script src="{% static 'main_app/js/jquery.cookie.js' %}"></script>
+    <script src="{% static 'main_app/js/prism.js' %}"></script>
+    <script src="{% static 'ckeditor/ckeditor/plugins/prism/lib/prism/prism_patched.min.js' %}"></script>
+
+    <!--网页标题-->
+    <title>Messages</title>
+</head>
+
+<body>
+    <div class="container use-motion">
+        <!--返回顶部-->
+        <div class="back-to-top">
+            <i class="fa fa-arrow-up"></i>
+            <span>0%</span>
+        </div>
+
+        <main id="main" class="main">
+            <div class="main-inner">
+                <div class="content-wrap">
+                    <!--留言-->
+                    <div class="comments v bk-translucent" id="comments" style="opacity: 1; display: block;">
+                        <!--留言框-->
+                        <div id="reply_id" style="display: none;">
+                            <h1 id="id" class="-1" ><i class="fa fa-share"></i> 留言id：-1</h1>
+                        </div>
+                        <form id="sm" role="form" method="post" action="" enctype="multipart/form-data" novalidate autocomplete="off">
+                            {% csrf_token %}
+                            {{ message_form.media }}
+                            <ul id="errors"></ul>
+                            {{ message_form.content }}
+                            <button type="button" id="send-message">
+                                <i class="fa fa-send"></i>&nbsp;&nbsp;发送留言
+                            </button>
+                        </form>
+
+                        <!--留言数统计-->
+                        <div class="vinfo" style="display:block;">
+                            <div class="vcount col">
+                                <span class="vnum">{{ messages_num }} </span>留言
+                            </div>
+                        </div>
+
+                        <!--留言区-->
+                        <div class="vlist">
+                            {% for message, layer in messages_list_layers_list %}
+                                <div class="vcard">
+                                    {% if message.reply_id == -1 %}
+                                        <img class="vimg" src="https://gravatar.loli.net/avatar/b6f368e7734816cf9e2dea0d28b82f9f?d=wavatar&amp;v=1.3.10" />
+                                    {% endif %}
+                                    <div class="vh">
+                                        {% if message.reply_id == -1 %}
+                                            <div class="vhead">
+                                                <span class="vnick">留言id：{{ message.id }}</span>
+                                            </div>
+                                            <div class="vmeta vhead">
+                                                <span class="vsys"><i class="fa fa-cubes"></i> {{ layer }} 层</span>
+                                                <span class="vsys">{{ message.send_time }}</span>
+                                                <span title="{{ message.id }}" class="vat"><i class="fa fa-commenting"></i></span>
+                                            </div>
+                                            <div id="insert{{ message.id }}" class="vcontent">
+                                                <p>{{ message.content|safe }}</p>
+                                            </div>
+                                        {% else %}
+                                            <div id="insert{{ message.id }}" class="vquote">
+                                                <div class="vcard">
+                                                    <img class="vimg" src="https://gravatar.loli.net/avatar/a9126a74d0551660d7d638def0b16025?d=wavatar&amp;v=1.3.10" />
+                                                    <div class="vh">
+                                                        <div class="vhead">
+                                                            <span class="vnick">留言id：{{ message.id }}</span>
+                                                            <i class="fa fa-share"></i>
+                                                            <span class="vnick">留言id：{{ message.reply_id }}</span>
+                                                        </div>
+                                                        <div class="vmeta vhead">
+                                                            <span class="vsys">{{ message.send_time }}</span>
+                                                            <span title="{{ message.id }}" class="vat"><i class="fa fa-commenting"></i></span>
+                                                        </div>
+                                                        <div class="vcontent">
+                                                            <p>{{ message.content|safe }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <h1>暂无留言！</h1>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!--js文件-->
+    <script src="{% static 'main_app/js/anime.min.js' %}"></script>
+    <script src="{% static 'main_app/js/utils.js' %}"></script>
+    <script src="{% static 'main_app/js/next-boot.js' %}"></script>
+    <script src="{% static 'main_app/js/reply-id.js' %}"></script>
+
+    <!--Ajax-->
+    <script>
+        $(document).ready(function() {
+            $("#send-message").click(function(){
+                for (instance in CKEDITOR.instances)
+                    CKEDITOR.instances[instance].updateElement();
+                var form_data=new FormData($("#sm")[0]);
+                form_data.append("reply_id", $("#id").attr("class"));
+                $.ajax({
+                    url:"{% url 'main_app:handle_messages' %}",
+                    type:"POST",
+                    headers:{"X-CSRFToken":$.cookie('csrftoken')},
+                    data:form_data,
+                    processData:false,
+                    contentType:false,
+                    success:function(data){
+                        if(data.verify_result === 'valid'){
+                            $("#errors").empty();
+                            if($("#id").attr("class") === '-1'){
+                                $(".vlist").append(data.new_message_html);
+                            }
+                            else{
+                                $(data.insert_id).after(data.new_message_html);
+                            }
+                            $(".vnum").html(data.messages_num_html);
+                            for (instance in CKEDITOR.instances)
+                                CKEDITOR.instances[instance].setData('');
+                            $("pre").addClass("line-numbers");
+                            $.getScript("{% static 'main_app/js/prism.js' %}");
+                            $.getScript("{% static 'ckeditor/ckeditor/plugins/prism/lib/prism/prism_patched.min.js' %}");
+                            location.href = data.location_href;
+                        }
+                        else{
+                            var selector_id_errors = $("#errors");
+                            selector_id_errors.empty();
+                            selector_id_errors.append(data.errors_html);
+                        }
+                    }
+                })
+            })
+        })
+    </script>
+</body>
+
+</html>
